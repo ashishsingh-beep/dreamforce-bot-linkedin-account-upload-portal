@@ -15,7 +15,9 @@ function ForgotPasswordForm() {
     setMessage(null);
     setError(null);
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://dreamforcebot1lkdlortal.netlify.app/reset-password'
+      });
       if (error) throw error;
       setMessage("If the email exists you will receive password reset instructions.");
     } catch (err) {

@@ -34,10 +34,14 @@ function SignupForm({ setIsLoggedIn }) {
 
     setLoading(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp(
-        { email, password },
-        { data: { full_name: name } }
-      );
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email, 
+        password,
+        options: {
+          data: { full_name: name },
+          emailRedirectTo: 'https://dreamforcebot1lkdlortal.netlify.app/login'
+        }
+      });
       if (signUpError) {
         // Supabase returns a generic error, but you can check the message for duplicate email
         if (signUpError.message && signUpError.message.toLowerCase().includes("already registered")) {
