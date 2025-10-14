@@ -6,7 +6,7 @@ function Page1() {
   const [emailId, setEmailId] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState(""); // empty string represents null
-  const [createdBy, setCreatedBy] = useState(null);
+  // created_by removed from schema; no user tracking stored in table
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
   const [err, setErr] = useState(null);
@@ -27,21 +27,7 @@ function Page1() {
   const [loadingList, setLoadingList] = useState(false);
   const listRef = useRef(null);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (mounted) setCreatedBy(data?.user?.id ?? null);
-      } catch (e) {
-        if (mounted) setCreatedBy(null);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // removed created_by collection (no longer stored)
 
   useEffect(() => {
     fetchAccountsList();
@@ -63,7 +49,7 @@ function Page1() {
       // use email_id as the identifier (no `id` column in your table)
       const { data, error } = await supabase
         .from("accounts")
-        .select("email_id,status,created_at,created_by,password")
+  .select("email_id,status,created_at,password")
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -85,10 +71,7 @@ function Page1() {
     e.preventDefault();
     clearMessages();
 
-    if (!createdBy) {
-      setErr("You must be signed in to save an account (created_by).");
-      return;
-    }
+    // no created_by requirement anymore
     if (!emailId?.trim()) {
       setErr("Please provide an email or identifier.");
       return;
@@ -104,7 +87,6 @@ function Page1() {
         email_id: emailId.trim(),
         password,
         status: status || null,
-        created_by: createdBy,
       };
   const { data, error } = await supabase.from("accounts").insert([payload]).select();
       if (error) throw error;
@@ -161,18 +143,11 @@ function Page1() {
       return;
     }
 
-    const canSetCreatedBy = !found.created_by; // only allow if created_by is null/empty
-    const newCreatedBy = canSetCreatedBy ? createdBy : found.created_by;
-
-    if (!newCreatedBy) {
-      setErr("You must be signed in to set created_by.");
-      return;
-    }
+    // created_by removed; no gating needed
 
     setUpdating(true);
     try {
-      const updates = { status: updateStatus };
-      if (canSetCreatedBy && newCreatedBy) updates.created_by = newCreatedBy;
+  const updates = { status: updateStatus };
 
       const { data, error } = await supabase
         .from("accounts")
@@ -427,9 +402,7 @@ function Page1() {
             <div style={{ marginBottom: 8 }}>
               <strong>Current status:</strong> {found.status ?? "null"}
             </div>
-            <div style={{ marginBottom: 8 }}>
-              <strong>Created by:</strong> {found.created_by ?? "null"}
-            </div>
+            {/* created_by removed */}
 
             <form onSubmit={handleUpdateAccount} style={{ marginTop: 8 }}>
               <label>
@@ -446,9 +419,7 @@ function Page1() {
                   {updating ? "Updating..." : "Update"}
                 </button>
 
-                <div style={{ color: "#6b7280" }}>
-                  Note: created_by can only be set if current record has created_by = null. (You are: {createdBy ?? "not signed in"})
-                </div>
+                {/* created_by note removed */}
               </div>
             </form>
           </div>
