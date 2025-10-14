@@ -174,10 +174,7 @@ function Page1() {
   // Bulk update accounts older than 24 hours
   const handleBulkUpdateOldAccounts = async () => {
     clearMessages();
-    if (!createdBy) {
-      setErr("You must be signed in to perform bulk updates.");
-      return;
-    }
+    // no auth requirement for bulk updates
 
     const confirmed = window.confirm(
       `This will update the status of all accounts created more than 24 hours ago to "${bulkStatus}". Are you sure?`
@@ -319,18 +316,13 @@ function Page1() {
                 type="button"
                 className="btn btn-primary"
                 onClick={handleBulkUpdateOldAccounts}
-                disabled={bulkUpdating || !createdBy}
+                disabled={bulkUpdating}
                 style={{ backgroundColor: "#f59e0b", borderColor: "#f59e0b" }}
               >
                 {bulkUpdating ? "Updating..." : "Update Old Accounts (24h+)"}
               </button>
             </div>
-            
-            {!createdBy && (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#78350f" }}>
-                You must be signed in to perform bulk updates.
-              </div>
-            )}
+
           </div>
 
         </div>
@@ -375,9 +367,6 @@ function Page1() {
             <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save to accounts"}
             </button>
-            <div style={{ marginLeft: 12, color: "#6b7280" }}>
-              Created by: {createdBy ?? "not signed in"}
-            </div>
           </div>
 
           {msg && <div className="form-success" style={{ marginTop: 12 }}>{msg}</div>}
