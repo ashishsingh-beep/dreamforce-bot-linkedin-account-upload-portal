@@ -62,7 +62,7 @@ function Page1() {
     try {
       // use email_id as the identifier (no `id` column in your table)
       const { data, error } = await supabase
-        .from("Accounts")
+        .from("accounts")
         .select("email_id,status,created_at,created_by,password")
         .order("created_at", { ascending: false })
         .limit(500);
@@ -106,12 +106,12 @@ function Page1() {
         status: status || null,
         created_by: createdBy,
       };
-      const { data, error } = await supabase.from("Accounts").insert([payload]).select();
+  const { data, error } = await supabase.from("accounts").insert([payload]).select();
       if (error) throw error;
       setMsg("Account saved to database.");
       setEmailId("");
       setPassword("");
-  setStatus("");
+    setStatus("");
       fetchAccountsList();
     } catch (e) {
       setErr(e?.message || "Failed to save account.");
@@ -132,7 +132,7 @@ function Page1() {
     setFetching(true);
     try {
       const { data, error } = await supabase
-        .from("Accounts")
+        .from("accounts")
         .select("*")
         .eq("email_id", acc.email_id)
         .maybeSingle();
@@ -142,8 +142,8 @@ function Page1() {
         setErr("Selected account not found.");
         setFound(null);
       } else {
-  setFound(data);
-  setUpdateStatus(data.status ?? "");
+    setFound(data);
+    setUpdateStatus(data.status ?? "");
       }
     } catch (e) {
       setErr(e?.message || "Failed to fetch account.");
@@ -175,7 +175,7 @@ function Page1() {
       if (canSetCreatedBy && newCreatedBy) updates.created_by = newCreatedBy;
 
       const { data, error } = await supabase
-        .from("Accounts")
+        .from("accounts")
         .update(updates)
         .eq("email_id", found.email_id)
         .select()
@@ -217,7 +217,7 @@ function Page1() {
       const timestamp = twentyFourHoursAgo.toISOString();
 
       const { data, error } = await supabase
-        .from("Accounts")
+        .from("accounts")
         .update({ status: bulkStatus })
         .lt("created_at", timestamp)
         .select();
@@ -250,7 +250,7 @@ function Page1() {
             <li>Enter the temporary email or temp phone number, full name and an easy-to-remember password (you will store it below).</li>
             <li>Complete the verification step (confirm via the temp email inbox or SMS code).</li>
             <li>Finish setup: add a profile photo later if desired. Keep the temporary address as backup.</li>
-            <li>After the account is created, add the account's email and password to the form below to save it in the "Accounts" table.</li>
+            <li>After the account is created, add the account's email and password to the form below to save it in the "accounts" table.</li>
           </ol>
 
           {/* <p className="muted" style={{ marginTop: 8 }}>
@@ -362,7 +362,7 @@ function Page1() {
       </div>
 
       <div className="card" style={{ marginTop: 18, maxWidth: 760, marginLeft: "auto", marginRight: "auto" }}>
-        <h2>Save account to Supabase (Accounts table)</h2>
+  <h2>Save account to Supabase (accounts table)</h2>
 
         <form className="auth-form" onSubmit={handleAddAccount} style={{ marginTop: 8 }}>
           <label>
@@ -398,7 +398,7 @@ function Page1() {
 
           <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
             <button className="btn btn-primary" type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save to Accounts"}
+              {loading ? "Saving..." : "Save to accounts"}
             </button>
             <div style={{ marginLeft: 12, color: "#6b7280" }}>
               Created by: {createdBy ?? "not signed in"}
