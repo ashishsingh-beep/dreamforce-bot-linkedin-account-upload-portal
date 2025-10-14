@@ -5,7 +5,7 @@ import { supabase } from "../services/supabaseClient";
 function Page1() {
   const [emailId, setEmailId] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState("temp");
+  const [status, setStatus] = useState(""); // empty string represents null
   const [createdBy, setCreatedBy] = useState(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -14,12 +14,12 @@ function Page1() {
   // For update/details section
   const [found, setFound] = useState(null);
   const [fetching, setFetching] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState("temp");
+  const [updateStatus, setUpdateStatus] = useState(""); // empty string represents null
   const [updating, setUpdating] = useState(false);
 
   // For bulk status update
   const [bulkUpdating, setBulkUpdating] = useState(false);
-  const [bulkStatus, setBulkStatus] = useState("flagged");
+  const [bulkStatus, setBulkStatus] = useState(""); // empty string represents null
 
   // accounts list for dropdown
   const [accountsList, setAccountsList] = useState([]);
@@ -103,7 +103,7 @@ function Page1() {
       const payload = {
         email_id: emailId.trim(),
         password,
-        status,
+        status: status || null,
         created_by: createdBy,
       };
       const { data, error } = await supabase.from("Accounts").insert([payload]).select();
@@ -111,7 +111,7 @@ function Page1() {
       setMsg("Account saved to database.");
       setEmailId("");
       setPassword("");
-      setStatus("temp");
+  setStatus("");
       fetchAccountsList();
     } catch (e) {
       setErr(e?.message || "Failed to save account.");
@@ -142,8 +142,8 @@ function Page1() {
         setErr("Selected account not found.");
         setFound(null);
       } else {
-        setFound(data);
-        setUpdateStatus(data.status ?? "temp");
+  setFound(data);
+  setUpdateStatus(data.status ?? "");
       }
     } catch (e) {
       setErr(e?.message || "Failed to fetch account.");
@@ -284,28 +284,33 @@ function Page1() {
                   {!loadingList && accountsList.length === 0 && (
                     <div className="muted" style={{ padding: 8 }}>No accounts found</div>
                   )}
-                  {!loadingList && accountsList.map((acc) => (
-                    <button
-                      key={acc.email_id}
-                      type="button"
-                      className={`account-item ${acc.status || "temp"}`}
-                      onClick={() => selectAccount(acc)}
-                      role="listitem"
-                      aria-label={`Select ${acc.email_id}, status ${acc.status || "temp"}`}
-                    >
-                      <span className="account-name">{acc.email_id}</span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span className={`status-dot ${acc.status || "temp"}`} aria-hidden="true"></span>
-                        <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                          {acc.created_at ? new Date(acc.created_at).toLocaleString() : ""}
+                  {!loadingList && accountsList.map((acc) => {
+                    const statusClass = ((acc.status ?? 'none') + '')
+                      .toLowerCase()
+                      .replace(/\s+/g, '-');
+                    return (
+                      <button
+                        key={acc.email_id}
+                        type="button"
+                        className={`account-item ${statusClass}`}
+                        onClick={() => selectAccount(acc)}
+                        role="listitem"
+                        aria-label={`Select ${acc.email_id}, status ${acc.status ?? "null"}`}
+                      >
+                        <span className="account-name">{acc.email_id}</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span className={`status-dot ${statusClass}`} aria-hidden="true"></span>
+                          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                            {acc.created_at ? new Date(acc.created_at).toLocaleString() : ""}
+                          </span>
                         </span>
-                      </span>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                   <div className="accounts-note" aria-hidden="true">
                     <div className="legend"><span className="dot dot--active"></span> active</div>
-                    <div className="legend"><span className="dot dot--temp"></span> temp</div>
-                    <div className="legend"><span className="dot dot--flagged"></span> flagged</div>
+                    <div className="legend"><span className="dot dot--not-visited"></span> not visited</div>
+                    <div className="legend"><span className="dot dot--none"></span> null</div>
                   </div>
                 </div>
               )}
@@ -329,9 +334,9 @@ function Page1() {
                   onChange={(e) => setBulkStatus(e.target.value)}
                   style={{ minWidth: 100 }}
                 >
+                  <option value="">null</option>
                   <option value="active">active</option>
-                  <option value="temp">temp</option>
-                  <option value="flagged">flagged</option>
+                  <option value="not visited">not visited</option>
                 </select>
               </label>
               
@@ -385,9 +390,9 @@ function Page1() {
           <label>
             Status
             <select className="status-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">null</option>
               <option value="active">active</option>
-              <option value="temp">temp</option>
-              <option value="flagged">flagged</option>
+              <option value="not visited">not visited</option>
             </select>
           </label>
 
@@ -420,7 +425,7 @@ function Page1() {
               <strong>Stored password:</strong> {found.password}
             </div>
             <div style={{ marginBottom: 8 }}>
-              <strong>Current status:</strong> {found.status}
+              <strong>Current status:</strong> {found.status ?? "null"}
             </div>
             <div style={{ marginBottom: 8 }}>
               <strong>Created by:</strong> {found.created_by ?? "null"}
@@ -430,9 +435,9 @@ function Page1() {
               <label>
                 Set status
                 <select className="status-select" value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value)}>
+                  <option value="">null</option>
                   <option value="active">active</option>
-                  <option value="temp">temp</option>
-                  <option value="flagged">flagged</option>
+                  <option value="not visited">not visited</option>
                 </select>
               </label>
 
