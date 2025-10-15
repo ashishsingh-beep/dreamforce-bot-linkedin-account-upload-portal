@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import "../styles/page1.css";
 import { supabase } from "../services/supabaseClient";
 
@@ -17,9 +17,11 @@ function Page1() {
   const [updateStatus, setUpdateStatus] = useState(""); // empty string represents null
   const [updating, setUpdating] = useState(false);
 
-  // For bulk status update
+  // For bulk status update (new)
   const [bulkUpdating, setBulkUpdating] = useState(false);
-  const [bulkStatus, setBulkStatus] = useState(""); // empty string represents null
+  const [bulkAgeCompare, setBulkAgeCompare] = useState("older"); // 'older' | 'newer'
+  const [bulkFromStatuses, setBulkFromStatuses] = useState([]); // ["", "active", "not visited", ...]
+  const [bulkTargetStatus, setBulkTargetStatus] = useState(""); // "" => null
 
   // accounts list for dropdown
   const [accountsList, setAccountsList] = useState([]);
@@ -49,7 +51,7 @@ function Page1() {
       // use email_id as the identifier (no `id` column in your table)
       const { data, error } = await supabase
         .from("accounts")
-  .select("email_id,status,created_at,password")
+        .select("email_id,status,created_at,password")
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -61,6 +63,13 @@ function Page1() {
       setLoadingList(false);
     }
   };
+
+  // Distinct status values from current list (include null as "")
+  const distinctStatuses = useMemo(() => {
+    const s = new Set();
+    for (const acc of accountsList) s.add(acc.status ?? "");
+    return Array.from(s);
+  }, [accountsList]);
 
   const clearMessages = () => {
     setMsg(null);
@@ -147,7 +156,7 @@ function Page1() {
 
     setUpdating(true);
     try {
-  const updates = { status: updateStatus };
+      const updates = { status: updateStatus || null };
 
       const { data, error } = await supabase
         .from("accounts")
@@ -171,13 +180,12 @@ function Page1() {
     }
   };
 
-  // Bulk update accounts older than 24 hours
-  const handleBulkUpdateOldAccounts = async () => {
+  // Bulk update with age filter and status checklist
+  const handleBulkUpdate = async () => {
     clearMessages();
-    // no auth requirement for bulk updates
 
     const confirmed = window.confirm(
-      `This will update the status of all accounts created more than 24 hours ago to "${bulkStatus}". Are you sure?`
+      `This will change ${bulkFromStatuses.map(v => v === "" ? "null" : v).join(", ")} accounts to "${bulkTargetStatus || "null"}" for ${bulkAgeCompare === "older" ? "older than" : "newer than"} 24 hours. Continue?`
     );
     if (!confirmed) return;
 
@@ -188,17 +196,36 @@ function Page1() {
       twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
       const timestamp = twentyFourHoursAgo.toISOString();
 
-      const { data, error } = await supabase
-        .from("accounts")
-        .update({ status: bulkStatus })
-        .lt("created_at", timestamp)
-        .select();
+      const applyAge = (q) => bulkAgeCompare === "older" ? q.lt("created_at", timestamp) : q.gte("created_at", timestamp);
 
-      if (error) throw error;
-      
-      const updatedCount = data ? data.length : 0;
-      setMsg(`Successfully updated ${updatedCount} accounts older than 24 hours to "${bulkStatus}" status.`);
-      fetchAccountsList(); // Refresh the list
+      let totalUpdated = 0;
+      const nonNull = bulkFromStatuses.filter((v) => v !== "");
+      const includesNull = bulkFromStatuses.includes("");
+
+      if (nonNull.length) {
+        const { data, error } = await applyAge(
+          supabase
+            .from("accounts")
+            .update({ status: bulkTargetStatus || null })
+            .in("status", nonNull)
+        ).select();
+        if (error) throw error;
+        totalUpdated += data ? data.length : 0;
+      }
+
+      if (includesNull) {
+        const { data, error } = await applyAge(
+          supabase
+            .from("accounts")
+            .update({ status: bulkTargetStatus || null })
+            .is("status", null)
+        ).select();
+        if (error) throw error;
+        totalUpdated += data ? data.length : 0;
+      }
+
+      setMsg(`Successfully updated ${totalUpdated} accounts (${bulkAgeCompare === "older" ? "older than" : "newer than"} 24h) to "${bulkTargetStatus || "null"}".`);
+      fetchAccountsList();
     } catch (e) {
       setErr(e?.message || "Failed to perform bulk update.");
     } finally {
@@ -290,39 +317,80 @@ function Page1() {
           </div>
           {/* end accounts dropdown */}
 
-          {/* Bulk update section */}
+          {/* Bulk update section (new) */}
           <div className="card" style={{ marginTop: 18, backgroundColor: "#fef3c7", border: "1px solid #f59e0b" }}>
-            <h3 style={{ color: "#92400e", marginBottom: 12 }}>Bulk Update Old Accounts</h3>
-            <p style={{ color: "#78350f", fontSize: 14, marginBottom: 16 }}>
-              Update the status of all accounts created more than 24 hours ago.
-            </p>
-            
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14, color: "#78350f" }}>Set status to:</span>
-                <select 
-                  className="status-select" 
-                  value={bulkStatus} 
-                  onChange={(e) => setBulkStatus(e.target.value)}
-                  style={{ minWidth: 100 }}
+            <h3 style={{ color: "#92400e", marginBottom: 12 }}>Bulk Update</h3>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Age filter */}
+              <label style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 14, color: "#78350f" }}>Choose created date range:</span>
+                <select
+                  className="status-select"
+                  value={bulkAgeCompare}
+                  onChange={(e) => setBulkAgeCompare(e.target.value)}
+                  style={{ minWidth: 220 }}
                 >
-                  <option value="">null</option>
-                  <option value="active">active</option>
-                  <option value="not visited">not visited</option>
+                  <option value="older">Older than 24 hours</option>
+                  <option value="newer">Newer than 24 hours</option>
                 </select>
               </label>
-              
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleBulkUpdateOldAccounts}
-                disabled={bulkUpdating}
-                style={{ backgroundColor: "#f59e0b", borderColor: "#f59e0b" }}
-              >
-                {bulkUpdating ? "Updating..." : "Update Old Accounts (24h+)"}
-              </button>
-            </div>
 
+              {/* Change X accounts to Y */}
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <span style={{ color: "#78350f", lineHeight: "28px" }}>Change</span>
+
+                {/* Checklist of current statuses */}
+                <div style={{ border: '1px solid rgba(11,22,50,0.06)', borderRadius: 10, padding: 10, background: '#fff', maxHeight: 180, overflow: 'auto', minWidth: 220 }}>
+                  {(() => {
+                    const items = ["", ...distinctStatuses.filter(v => v !== "").sort((a,b)=>a.localeCompare(b))];
+                    const toggle = (val) => {
+                      setBulkFromStatuses((prev) => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+                    };
+                    return (
+                      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+                        {items.map((v) => (
+                          <li key={v || 'null'} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                              id={`bulk-status-${v || 'null'}`}
+                              type="checkbox"
+                              checked={bulkFromStatuses.includes(v)}
+                              onChange={() => toggle(v)}
+                            />
+                            <label htmlFor={`bulk-status-${v || 'null'}`} style={{ cursor: 'pointer' }}>
+                              {v || 'null'}
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+                </div>
+
+                <span style={{ color: "#78350f", lineHeight: "28px" }}>accounts to</span>
+
+                <select
+                  className="status-select"
+                  value={bulkTargetStatus}
+                  onChange={(e) => setBulkTargetStatus(e.target.value)}
+                  style={{ minWidth: 180 }}
+                >
+                  <option value="">null</option>
+                  <option value="not visited">not visited</option>
+                  <option value="active">active</option>
+                </select>
+                
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleBulkUpdate}
+                  disabled={bulkUpdating}
+                  style={{ backgroundColor: "#f59e0b", borderColor: "#f59e0b" }}
+                >
+                  {bulkUpdating ? "Updating..." : "Apply"}
+                </button>
+              </div>
+            </div>
           </div>
 
         </div>
